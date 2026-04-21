@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cultivage — Accueil</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0f172a; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+.logo { font-size: 48px; margin-bottom: 1rem; }
+h1 { font-size: 28px; font-weight: 800; margin-bottom: .5rem; letter-spacing: 2px; }
+.sub { font-size: 15px; color: #64748b; margin-bottom: 3rem; }
+.cards { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 360px; }
+.card { border-radius: 16px; padding: 1.5rem 1.75rem; text-decoration: none; display: flex; align-items: center; gap: 1rem; transition: transform .15s, filter .15s; }
+.card:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.card-icon { font-size: 28px; flex-shrink: 0; }
+.card-title { font-size: 17px; font-weight: 800; }
+.card-desc { font-size: 13px; opacity: .75; margin-top: 2px; }
+.card-admin { background: #1d4ed8; }
+.card-session { background: #0f172a; border: 2px solid #334155; }
+.card-joueur { background: #e94560; }
+</style>
+</head>
+<body>
+<div class="logo">🌱</div>
+<h1>CULTIVAGE</h1>
+<p class="sub">Plateforme de quizz interactif</p>
+<div class="cards">
+  <a class="card card-admin" href="/cultivage-admin.html">
+    <span class="card-icon">⚙️</span>
+    <div>
+      <div class="card-title">Interface Admin</div>
+      <div class="card-desc">Gérer les questions et les sessions</div>
+    </div>
+  </a>
+  <a class="card card-session" href="/cultivage-session.html">
+    <span class="card-icon">🖥️</span>
+    <div>
+      <div class="card-title">Écran de session</div>
+      <div class="card-desc">À afficher sur le vidéoprojecteur</div>
+    </div>
+  </a>
+  <a class="card card-joueur" href="/cultivage-joueur.html">
+    <span class="card-icon">🎮</span>
+    <div>
+      <div class="card-title">Rejoindre une session</div>
+      <div class="card-desc">Pour les participants</div>
+    </div>
+  </a>
+</div>
+</body>
+</html>
