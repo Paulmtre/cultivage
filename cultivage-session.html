@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cultivage — Session</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0f172a; color: #fff; min-height: 100vh; overflow: hidden; }
+.top-banner { background: #1e293b; border-bottom: 1px solid #334155; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; height: 54px; flex-shrink: 0; }
+.banner-title { font-size: 17px; font-weight: 700; }
+.banner-code { font-size: 13px; color: #38bdf8; font-weight: 600; margin-left: 1rem; }
+.banner-status { font-size: 13px; color: #64748b; }
+.layout { display: flex; height: calc(100vh - 54px); }
+.left { flex: 1; padding: 2rem; overflow-y: auto; display: flex; flex-direction: column; }
+.right { width: 250px; background: #1e293b; border-left: 1px solid #334155; padding: 1.25rem; overflow-y: auto; flex-shrink: 0; }
+.panel-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #64748b; margin-bottom: 1rem; }
+.score-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #0f172a; border-radius: 8px; margin-bottom: 5px; }
+.score-name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+.score-pts { color: #38bdf8; font-weight: 700; font-size: 13px; }
+.panel-empty { font-size: 13px; color: #475569; text-align: center; padding: 1rem 0; }
+.screen { display: none; flex: 1; flex-direction: column; }
+.screen.active { display: flex; }
+#s-waiting { align-items: center; justify-content: center; text-align: center; }
+.dot-pulse { display: flex; gap: 6px; justify-content: center; margin-top: 1.5rem; }
+.dot-pulse span { width: 10px; height: 10px; border-radius: 50%; background: #38bdf8; animation: dp 1.4s infinite; }
+.dot-pulse span:nth-child(2){animation-delay:.2s;} .dot-pulse span:nth-child(3){animation-delay:.4s;}
+@keyframes dp{0%,100%{opacity:.2;transform:scale(.8);}50%{opacity:1;transform:scale(1.2);}}
+.mod-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; }
+.mod-card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 1.25rem; cursor: pointer; transition: all .15s; }
+.mod-card:hover { border-color: #38bdf8; transform: translateY(-2px); }
+.mod-icon { font-size: 28px; margin-bottom: 8px; }
+.mod-name { font-size: 15px; font-weight: 700; }
+.mod-desc { font-size: 12px; color: #64748b; margin-top: 3px; }
+.breadcrumb { font-size: 13px; color: #64748b; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; }
+.bc-link { color: #38bdf8; cursor: pointer; } .bc-link:hover { text-decoration: underline; }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 10px; }
+.theme-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1rem; cursor: pointer; transition: all .15s; text-align: center; font-size: 15px; font-weight: 600; }
+.theme-card:hover { border-color: #38bdf8; }
+#modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); align-items: center; justify-content: center; z-index: 100; }
+#modal.show { display: flex; }
+.modal-box { background: #1e293b; border: 1px solid #334155; border-radius: 18px; padding: 2rem; max-width: 420px; width: 90%; text-align: center; }
+.modal-icon { font-size: 36px; margin-bottom: .75rem; }
+.modal-title { font-size: 19px; font-weight: 700; margin-bottom: .25rem; }
+.modal-sub { font-size: 13px; color: #64748b; margin-bottom: .5rem; }
+.modal-info { font-size: 13px; color: #94a3b8; margin-bottom: 1.25rem; }
+.modal-fields { display: flex; gap: 1rem; justify-content: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.modal-field label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 4px; text-align: center; }
+.modal-field input { width: 80px; padding: 8px; background: #0f172a; border: 2px solid #334155; border-radius: 8px; font-size: 16px; color: #fff; text-align: center; font-family: inherit; outline: none; }
+.modal-field input:focus { border-color: #38bdf8; }
+.modal-btns { display: flex; gap: 12px; justify-content: center; }
+.btn-yes { background: #16a34a; color: #fff; border: none; border-radius: 10px; padding: 11px 28px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn-yes:hover { background: #15803d; }
+.btn-no { background: none; color: #94a3b8; border: 1px solid #334155; border-radius: 10px; padding: 11px 28px; font-size: 15px; cursor: pointer; font-family: inherit; }
+.btn-no:hover { background: #0f172a; }
+.q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 10px; }
+.q-progress { font-size: 14px; color: #64748b; font-weight: 600; }
+.q-timer-wrap { display: flex; align-items: center; gap: 10px; }
+.q-timer { font-size: 30px; font-weight: 900; color: #38bdf8; min-width: 44px; text-align: right; }
+.q-timer.urgent { color: #ef4444; animation: tick 1s infinite; }
+.q-timer.paused { color: #f59e0b; }
+@keyframes tick{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+.timer-bar-wrap { width: 160px; height: 5px; background: #1e293b; border-radius: 99px; overflow: hidden; }
+.timer-bar { height: 100%; background: #38bdf8; border-radius: 99px; transition: width 1s linear; }
+.q-text-big { font-size: 26px; font-weight: 700; color: #f1f5f9; margin-bottom: 1.75rem; line-height: 1.35; }
+.answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 1rem; }
+.ans-card { background: #1e293b; border: 2px solid #334155; border-radius: 12px; padding: 1rem; display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; transition: all .3s; }
+.ans-letter { width: 34px; height: 34px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.l-A{background:#e94560;} .l-B{background:#1e90ff;} .l-C{background:#f5a623;} .l-D{background:#2ecc71; color:#1a1a2e;}
+.ans-card.correct { border-color: #16a34a; background: #052e16; }
+.ans-card.wrong { opacity: .35; }
+.ans-card.vf { justify-content: center; font-size: 18px; }
+.q-responses { font-size: 13px; color: #64748b; margin-bottom: .75rem; }
+.q-reveal-msg { font-size: 15px; color: #4ade80; font-weight: 600; margin-bottom: .75rem; min-height: 22px; }
+.ctrl-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: .5rem; }
+.btn-ctrl { border: none; border-radius: 10px; padding: 10px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn-pause { background: #f59e0b; color: #0f172a; }
+.btn-pause:hover { background: #fbbf24; }
+.btn-next { background: #38bdf8; color: #0f172a; }
+.btn-next:hover { background: #7dd3fc; }
+.btn-next:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+#s-recap { align-items: center; justify-content: center; text-align: center; }
+.recap-title { font-size: 26px; font-weight: 700; margin-bottom: 1.5rem; }
+.recap-list { width: 100%; max-width: 480px; }
+.recap-item { display: flex; justify-content: space-between; align-items: center; background: #1e293b; border-radius: 10px; padding: 12px 20px; margin-bottom: 8px; font-size: 15px; }
+.recap-rank { font-size: 20px; min-width: 32px; }
+.recap-name { font-weight: 600; flex: 1; text-align: left; margin-left: 10px; }
+.recap-pts { color: #38bdf8; font-weight: 700; }
+.btn-back { background: #38bdf8; color: #0f172a; border: none; border-radius: 10px; padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 1.5rem; }
+.btn-back:hover { background: #7dd3fc; }
+.scr-title { font-size: 20px; font-weight: 700; margin-bottom: .5rem; color: #f1f5f9; }
+.scr-sub { font-size: 13px; color: #64748b; margin-bottom: 1.25rem; }
+#screen-no-session { display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center; }
+</style>
+</head>
+<body>
+<div id="screen-no-session">
+  <div style="font-size:48px;margin-bottom:1rem;">📡</div>
+  <div style="font-size:22px;font-weight:700;margin-bottom:.5rem;">Aucune session active</div>
+  <div style="font-size:14px;color:#64748b;">Lance une session depuis l'interface admin.</div>
+</div>
+
+<div id="app" style="display:none;height:100vh;flex-direction:column;">
+  <div class="top-banner">
+    <div style="display:flex;align-items:center;">
+      <span class="banner-title" id="banner-title">—</span>
+      <span class="banner-code" id="banner-code"></span>
+    </div>
+    <span class="banner-status" id="banner-status">En attente…</span>
+  </div>
+  <div class="layout">
+    <div class="left">
+
+      <div class="screen active" id="s-waiting" style="align-items:center;justify-content:center;text-align:center;">
+        <div style="font-size:52px;margin-bottom:1rem;">⏳</div>
+        <div style="font-size:24px;font-weight:700;margin-bottom:.5rem;">En attente du démarrage</div>
+        <div style="font-size:14px;color:#64748b;">L'admin va bientôt lancer la session</div>
+        <div class="dot-pulse"><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="screen" id="s-modules">
+        <div class="scr-title">Choisir un module</div>
+        <div class="scr-sub">Sélectionne le type de jeu pour cette manche</div>
+        <div class="mod-grid">
+          <div class="mod-card" onclick="pickModule('qcm')"><div class="mod-icon">🔤</div><div class="mod-name">QCM</div><div class="mod-desc">4 choix de réponses</div></div>
+          <div class="mod-card" onclick="pickModule('vf')"><div class="mod-icon">✅</div><div class="mod-name">Vrai / Faux</div><div class="mod-desc">Une affirmation à juger</div></div>
+        </div>
+      </div>
+
+      <div class="screen" id="s-themes">
+        <div class="breadcrumb"><span class="bc-link" onclick="show('s-modules')">Modules</span><span>›</span><span id="bc-mod" style="color:#f1f5f9;font-weight:600;"></span></div>
+        <div class="scr-title">Choisir un thème</div>
+        <div class="scr-sub">Sélectionne le thème pour cette manche</div>
+        <div class="theme-grid" id="theme-grid"></div>
+      </div>
+
+      <div class="screen" id="s-question">
+        <div class="q-header">
+          <span class="q-progress" id="q-prog">Question 1/5</span>
+          <div class="q-timer-wrap">
+            <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar"></div></div>
+            <span class="q-timer" id="q-timer">15</span>
+          </div>
+        </div>
+        <div class="q-text-big" id="q-text"></div>
+        <div class="answers-grid" id="q-answers"></div>
+        <div class="q-responses" id="q-resp"></div>
+        <div class="q-reveal-msg" id="q-reveal-msg"></div>
+        <div class="ctrl-bar">
+          <button class="btn-ctrl btn-pause" id="btn-pause" onclick="togglePause()">⏸ Pause</button>
+          <button class="btn-ctrl btn-next" id="btn-next" onclick="manualNext()" disabled>Question suivante →</button>
+        </div>
+      </div>
+
+      <div class="screen" id="s-recap" style="align-items:center;justify-content:center;text-align:center;">
+        <div class="recap-title">🏆 Résultats du thème</div>
+        <div class="recap-list" id="recap-list"></div>
+        <button class="btn-back" onclick="backToModules()">Retour au menu →</button>
+      </div>
+
+    </div>
+    <div class="right">
+      <div class="panel-title">Joueurs & Scores</div>
+      <div id="players-panel"><div class="panel-empty">Aucun joueur</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-icon">🚀</div>
+    <div class="modal-title" id="modal-title">Lancer ce thème ?</div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="modal-info" id="modal-info"></div>
+    <div class="modal-fields">
+      <div class="modal-field"><label>Nb de questions</label><input type="number" id="modal-nb" value="5" min="1" max="50"/></div>
+      <div class="modal-field"><label>Secondes / question</label><input type="number" id="modal-sec" value="15" min="5" max="120"/></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-no" onclick="closeModal()">Non</button>
+      <button class="btn-yes" onclick="confirmLaunch()">Oui, lancer !</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const THEMES=["Sport","Histoire","Géographie","Science"];
+const MOD_NAMES={qcm:"QCM",vf:"Vrai / Faux"};
+const firebaseConfig={apiKey:"AIzaSyC8XmP4SK8fypEJmHam52IIPqPVLa9U-AI",authDomain:"cultivage-90317.firebaseapp.com",projectId:"cultivage-90317",storageBucket:"cultivage-90317.firebasestorage.app",messagingSenderId:"481308116798",appId:"1:481308116798:web:b54ad9044e2f2760068e6f"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+
+let sessionId=null,selMod=null,selTheme=null;
+let gameInProgress=false;
+let questions=[],qIndex=0,timerSec=15,timerInterval=null,timeLeft=0;
+let roundId=null,answersUnsub=null,totalPlayers=0;
+let roundQuestions=[];
+let isPaused=false,isRevealed=false;
+
+db.collection('sessions').where('status','in',['waiting','started']).onSnapshot(snap=>{
+  if(snap.empty){
+    document.getElementById('screen-no-session').style.display='flex';
+    document.getElementById('app').style.display='none';
+    return;
+  }
+  const sorted=snap.docs.sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
+  const doc=sorted[0]; sessionId=doc.id;
+  const d=doc.data();
+  document.getElementById('screen-no-session').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('banner-title').textContent=d.name;
+  document.getElementById('banner-code').textContent='CODE : '+d.code;
+  document.getElementById('banner-status').textContent=d.status==='started'?'▶ En cours':'⏳ En attente…';
+  if(d.status==='started'){
+    if(!gameInProgress) show('s-modules');
+  } else {
+    gameInProgress=false;
+    show('s-waiting');
+  }
+
+  db.collection('sessions').doc(sessionId).collection('participants').onSnapshot(pSnap=>{
+    totalPlayers=pSnap.size;
+    const players=pSnap.docs.map(d=>d.data()).sort((a,b)=>(b.score||0)-(a.score||0));
+    const panel=document.getElementById('players-panel');
+    if(!players.length){panel.innerHTML='<div class="panel-empty">Aucun joueur</div>';return;}
+    panel.innerHTML=players.map((p,i)=>`<div class="score-item"><span class="score-name">${['🥇','🥈','🥉'][i]||'  '} ${p.name}</span><span class="score-pts">${p.score||0} pts</span></div>`).join('');
+  });
+});
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el) el.classList.add('active');
+}
+
+function pickModule(mod){
+  selMod=mod;
+  document.getElementById('bc-mod').textContent=MOD_NAMES[mod];
+  document.getElementById('theme-grid').innerHTML=THEMES.map(t=>`<div class="theme-card" onclick="pickTheme('${t}')">${t}</div>`).join('');
+  show('s-themes');
+}
+
+async function pickTheme(theme){
+  selTheme=theme;
+  const snap=await db.collection('questions').where('module','==',selMod).where('theme','==',theme).get();
+  const total=snap.size;
+  document.getElementById('modal-sub').textContent=MOD_NAMES[selMod]+' — '+theme;
+  document.getElementById('modal-info').textContent=total+' question'+(total!==1?'s':'')+' disponible'+(total!==1?'s':'');
+  document.getElementById('modal-nb').max=total;
+  document.getElementById('modal-nb').value=Math.min(5,total);
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+
+async function confirmLaunch(){
+  const nb=parseInt(document.getElementById('modal-nb').value)||5;
+  timerSec=parseInt(document.getElementById('modal-sec').value)||15;
+  closeModal();
+  const snap=await db.collection('questions').where('module','==',selMod).where('theme','==',selTheme).get();
+  questions=snap.docs.map(d=>({id:d.id,...d.data()})).sort(()=>Math.random()-.5).slice(0,nb);
+  qIndex=0;
+
+  roundQuestions = questions.map(q=>({id:q.id,text:q.text,answers:q.answers||null,correct:q.correct,module:selMod}));
+
+  const roundRef=await db.collection('sessions').doc(sessionId).collection('rounds').add({
+    module:selMod,theme:selTheme,
+    questions:roundQuestions,
+    totalQuestions:questions.length,timerSec,status:'playing',currentIndex:0,
+    startedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  roundId=roundRef.id;
+
+  // Écrire TOUT currentRound d'un seul coup — jamais de dot-notation partielle
+  await db.collection('sessions').doc(sessionId).update({
+    currentRound:{
+      roundId,
+      module:selMod,
+      theme:selTheme,
+      status:'playing',
+      currentIndex:0,
+      timerSec,
+      totalQuestions:questions.length,
+      seq:1,
+      questions:roundQuestions
+    }
+  });
+  showQuestion(0);
+}
+
+function showQuestion(idx){
+  qIndex=idx; isPaused=false; isRevealed=false; gameInProgress=true;
+  const q=questions[idx];
+  show('s-question');
+  document.getElementById('q-prog').textContent='Question '+(idx+1)+'/'+questions.length;
+  document.getElementById('q-text').textContent=q.text;
+  document.getElementById('q-reveal-msg').textContent='';
+  document.getElementById('q-resp').textContent='En attente des réponses…';
+  document.getElementById('btn-pause').textContent='⏸ Pause';
+  document.getElementById('btn-pause').disabled=false;
+  document.getElementById('btn-next').disabled=true;
+
+  const answersEl=document.getElementById('q-answers');
+  if(selMod==='qcm'){
+    answersEl.innerHTML=q.answers.map((a,j)=>`<div class="ans-card" id="ans-${j}"><div class="ans-letter l-${'ABCD'[j]}">${'ABCD'[j]}</div>${a}</div>`).join('');
+  } else {
+    answersEl.innerHTML=`<div class="ans-card vf" id="ans-0">✅ Vrai</div><div class="ans-card vf" id="ans-1">❌ Faux</div>`;
+  }
+
+  clearInterval(timerInterval);
+  timeLeft=timerSec;
+  updateTimer(timeLeft);
+
+  if(answersUnsub){answersUnsub();answersUnsub=null;}
+  let revealed=false;
+  answersUnsub=db.collection('sessions').doc(sessionId).collection('rounds').doc(roundId)
+    .collection('answers').where('questionIndex','==',idx)
+    .onSnapshot(snap=>{
+      const count=snap.size;
+      document.getElementById('q-resp').textContent=count+' réponse'+(count!==1?'s':'')+' / '+totalPlayers+' joueur'+(totalPlayers!==1?'s':'');
+      if(!revealed && !isPaused && totalPlayers>0 && count>=totalPlayers){
+        revealed=true;
+        clearInterval(timerInterval);
+        revealAnswer(idx);
+      }
+    });
+
+  timerInterval=setInterval(()=>{
+    if(isPaused) return;
+    timeLeft--;
+    updateTimer(timeLeft);
+    if(timeLeft<=0 && !revealed){
+      revealed=true;
+      clearInterval(timerInterval);
+      revealAnswer(idx);
+    }
+  },1000);
+}
+
+function updateTimer(t){
+  const el=document.getElementById('q-timer');
+  const bar=document.getElementById('timer-bar');
+  if(!el||!bar) return;
+  el.textContent=t;
+  if(isPaused) el.className='q-timer paused';
+  else el.className='q-timer'+(t<=5?' urgent':'');
+  bar.style.width=(t/timerSec*100)+'%';
+  bar.style.background=isPaused?'#f59e0b':t<=5?'#ef4444':'#38bdf8';
+}
+
+function togglePause(){
+  isPaused=!isPaused;
+  const btn=document.getElementById('btn-pause');
+  btn.textContent=isPaused?'▶ Reprendre':'⏸ Pause';
+  updateTimer(timeLeft);
+}
+
+async function revealAnswer(idx){
+  if(answersUnsub){answersUnsub();answersUnsub=null;}
+  clearInterval(timerInterval);
+  isRevealed=true;
+  const q=questions[idx];
+
+  if(selMod==='qcm'){
+    q.answers.forEach((_,j)=>{
+      const el=document.getElementById('ans-'+j);
+      if(el) el.className='ans-card'+(j===q.correct?' correct':' wrong');
+    });
+  } else {
+    const t=document.getElementById('ans-0'),f=document.getElementById('ans-1');
+    if(q.correct===true){if(t)t.className='ans-card vf correct';if(f)f.className='ans-card vf wrong';}
+    else{if(f)f.className='ans-card vf correct';if(t)t.className='ans-card vf wrong';}
+  }
+
+  const answersSnap=await db.collection('sessions').doc(sessionId).collection('rounds').doc(roundId).collection('answers').where('questionIndex','==',idx).get();
+  const corrects=answersSnap.docs.filter(d=>d.data().isCorrect).length;
+  const total=answersSnap.docs.length;
+  document.getElementById('q-reveal-msg').textContent=corrects+'/'+total+' bonne'+(corrects!==1?'s':'')+' réponse'+(corrects!==1?'s':'')+' ✓';
+  document.getElementById('q-timer').textContent='✓';
+  document.getElementById('q-timer').className='q-timer';
+  document.getElementById('timer-bar').style.width='0%';
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-next').disabled=false;
+  document.getElementById('btn-next').textContent=idx<questions.length-1?'Question suivante →':'Voir les résultats 🏆';
+
+  await db.collection('sessions').doc(sessionId).update({
+    currentRound:{
+      roundId,module:selMod,theme:selTheme,
+      status:'revealed',
+      currentIndex:idx,
+      timerSec,totalQuestions:questions.length,
+      seq: idx+1,
+      questions:roundQuestions
+    }
+  });
+}
+
+async function manualNext(){
+  if(!isRevealed) return;
+  if(qIndex<questions.length-1){
+    await db.collection('sessions').doc(sessionId).update({
+      currentRound:{
+        roundId,module:selMod,theme:selTheme,
+        status:'playing',
+        currentIndex:qIndex+1,
+        timerSec,totalQuestions:questions.length,
+        seq: qIndex+2,
+        questions:roundQuestions
+      }
+    });
+    showQuestion(qIndex+1);
+  } else {
+    await db.collection('sessions').doc(sessionId).update({
+    currentRound:{
+      roundId,module:selMod,theme:selTheme,
+      status:'done',
+      currentIndex:qIndex,
+      timerSec,totalQuestions:questions.length,
+      seq:999,
+      questions:roundQuestions
+    }
+  });
+    showRecap();
+  }
+}
+
+async function showRecap(){
+  show('s-recap');
+  const pSnap=await db.collection('sessions').doc(sessionId).collection('participants').get();
+  const players=pSnap.docs.map(d=>d.data()).sort((a,b)=>(b.score||0)-(a.score||0));
+  document.getElementById('recap-list').innerHTML=players.map((p,i)=>`
+    <div class="recap-item">
+      <span class="recap-rank">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
+      <span class="recap-name">${p.name}</span>
+      <span class="recap-pts">${p.score||0} pts</span>
+    </div>`).join('');
+}
+
+function backToModules(){ gameInProgress=false; show('s-modules'); }
+</script>
+</body>
+</html>

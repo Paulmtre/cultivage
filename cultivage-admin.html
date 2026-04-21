@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cultivage — Admin</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js">window.onload = () => tryLogin();
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f3; min-height: 100vh; color: #1a1a1a; }
+#login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+.login-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 2.5rem 2rem; width: 100%; max-width: 380px; }
+.login-card h1 { font-size: 22px; font-weight: 600; margin-bottom: 0.25rem; }
+.login-card .sub { font-size: 14px; color: #666; margin-bottom: 1.5rem; }
+.login-card label { font-size: 13px; color: #555; display: block; margin-bottom: 6px; }
+.form-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 1rem; outline: none; font-family: inherit; }
+.form-input:focus { border-color: #1a1a1a; }
+.error-msg { font-size: 13px; color: #dc2626; margin-top: 0.5rem; min-height: 18px; }
+.success-msg { font-size: 13px; color: #16a34a; margin-top: 0.5rem; min-height: 18px; }
+.btn { border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.btn-dark { background: #1a1a1a; color: #fff; } .btn-dark:hover { background: #333; }
+.btn-green { background: #16a34a; color: #fff; } .btn-green:hover { background: #15803d; }
+.btn-outline { background: none; border: 1px solid #ddd; color: #555; } .btn-outline:hover { background: #f0f0f0; }
+.btn-red { background: none; border: 1px solid #dc2626; color: #dc2626; } .btn-red:hover { background: #fee2e2; }
+.btn-blue { background: #1d4ed8; color: #fff; } .btn-blue:hover { background: #1e40af; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-full { width: 100%; }
+#admin-screen { display: none; padding: 1.5rem; max-width: 960px; margin: 0 auto; }
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.top-bar h2 { font-size: 20px; font-weight: 600; }
+.nav-tabs { display: flex; border-bottom: 1px solid #e0e0e0; margin-bottom: 1.5rem; }
+.nav-tab { padding: 10px 20px; font-size: 14px; cursor: pointer; background: none; border: none; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
+.nav-tab:hover { color: #1a1a1a; }
+.nav-tab.active { color: #1a1a1a; font-weight: 600; border-bottom-color: #1a1a1a; }
+.view { display: none; } .view.active { display: block; }
+.step { display: none; } .step.active { display: block; }
+.section-title { font-size: 16px; font-weight: 600; margin-bottom: 0.5rem; }
+.section-sub { font-size: 13px; color: #666; margin-bottom: 1.25rem; }
+.module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.module-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1.25rem; cursor: pointer; transition: all 0.15s; }
+.module-card:hover { border-color: #1a1a1a; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.module-icon { font-size: 28px; margin-bottom: 10px; }
+.module-name { font-size: 15px; font-weight: 600; }
+.module-desc { font-size: 13px; color: #666; margin-top: 4px; }
+.module-count { font-size: 12px; color: #999; margin-top: 8px; }
+.breadcrumb { font-size: 13px; color: #666; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bc-link { color: #2563eb; cursor: pointer; } .bc-link:hover { text-decoration: underline; }
+.theme-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.theme-pill { font-size: 13px; padding: 7px 18px; border-radius: 99px; cursor: pointer; background: #f0f0f0; border: 1px solid #e0e0e0; color: #444; transition: all 0.15s; }
+.theme-pill:hover { background: #e0e0e0; }
+.theme-pill.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.form-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+.form-card .form-input { margin-bottom: 0.75rem; }
+.hint { font-size: 12px; color: #666; margin-bottom: 0.75rem; }
+.answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0.75rem; }
+.answer-item { display: flex; align-items: center; gap: 8px; }
+.answer-item input[type="radio"] { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; accent-color: #1a1a1a; }
+.answer-item .form-input { flex: 1; margin-bottom: 0; }
+.answer-label { font-size: 13px; font-weight: 600; color: #555; min-width: 18px; }
+.vf-row { display: flex; gap: 12px; margin-bottom: 0.75rem; }
+.vf-btn { flex: 1; padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: 8px; border: 2px solid #e0e0e0; background: #f5f5f5; color: #666; font-family: inherit; transition: all 0.15s; }
+.vf-btn:hover { border-color: #999; }
+.vf-btn.sel-true { border-color: #16a34a; background: #dcfce7; color: #15803d; }
+.vf-btn.sel-false { border-color: #dc2626; background: #fee2e2; color: #b91c1c; }
+/* LISTE QUESTIONS */
+.question-list { display: flex; flex-direction: column; gap: 6px; margin-top: 0.75rem; }
+.q-banner { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s; }
+.q-banner:hover { border-color: #1a1a1a; background: #fafafa; }
+.q-banner-text { font-size: 14px; font-weight: 500; color: #1a1a1a; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 1rem; }
+.q-banner-meta { font-size: 12px; color: #999; flex-shrink: 0; }
+/* EDIT PANEL */
+.edit-panel { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: 1rem 1.25rem; margin-top: 4px; margin-bottom: 8px; }
+.edit-panel .form-input { background: #fff; }
+.edit-actions { display: flex; gap: 8px; margin-top: 0.75rem; }
+/* SESSIONS */
+.session-create-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.session-create-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 1rem; }
+.active-session-card { background: #0f172a; color: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.as-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.as-label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.as-name { font-size: 20px; font-weight: 700; }
+.as-code { font-size: 14px; color: #38bdf8; font-weight: 600; margin-top: 4px; }
+.as-players { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+.as-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-start { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn-start:hover { background: #15803d; }
+.history-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.badge-done { font-size: 11px; padding: 3px 10px; border-radius: 99px; background: #f0f0f0; color: #666; }
+.empty-state { text-align: center; padding: 2rem 1rem; color: #999; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="login-screen">
+  <div class="login-card">
+    <div style="font-size:32px;margin-bottom:1rem;">🔒</div>
+    <h1>Espace admin</h1>
+    <p class="sub">Cultivage — Gestion des quizz</p>
+    <label>Clé d'accès</label>
+    <input type="password" class="form-input" id="password-input" placeholder="Entrez votre clé d'accès" onkeydown="if(event.key==='Enter')tryLogin()" />
+    <button class="btn btn-dark btn-full" onclick="tryLogin()">Se connecter</button>
+    <div class="error-msg" id="login-error"></div>
+  </div>
+</div>
+
+<div id="admin-screen">
+  <div class="top-bar">
+    <h2>🌱 Cultivage — Admin</h2>
+    <button class="btn btn-outline" onclick="logout()">Se déconnecter</button>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-modules" onclick="switchTab('modules')">Modules & Questions</button>
+    <button class="nav-tab" id="tab-sessions" onclick="switchTab('sessions')">Sessions</button>
+  </div>
+
+  <div id="view-modules" class="view active">
+    <div id="step-module" class="step active">
+      <p class="section-title">Choisir un module</p>
+      <p class="section-sub">Sélectionne un type de jeu pour gérer ses questions.</p>
+      <div class="module-grid">
+        <div class="module-card" onclick="selectModule('qcm')">
+          <div class="module-icon">🔤</div>
+          <div class="module-name">QCM</div>
+          <div class="module-desc">4 choix de réponses</div>
+          <div class="module-count" id="count-qcm">Chargement...</div>
+        </div>
+        <div class="module-card" onclick="selectModule('vf')">
+          <div class="module-icon">✅</div>
+          <div class="module-name">Vrai / Faux</div>
+          <div class="module-desc">Une affirmation à juger</div>
+          <div class="module-count" id="count-vf">Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="step-theme" class="step">
+      <div class="breadcrumb">
+        <span class="bc-link" onclick="goStep('module')">Modules</span><span>›</span>
+        <span id="bc-mod" style="font-weight:600;color:#1a1a1a;"></span>
+      </div>
+      <p class="section-title">Choisir un thème</p>
+      <div class="theme-row" id="theme-row"></div>
+    </div>
+
+    <div id="step-questions" class="step">
+      <div class="breadcrumb">
+        <span class="bc-link" onclick="goStep('module')">Modules</span><span>›</span>
+        <span class="bc-link" onclick="goStep('theme')" id="bc-mod2"></span><span>›</span>
+        <span id="bc-theme" style="font-weight:600;color:#1a1a1a;"></span>
+      </div>
+
+      <p class="section-title" id="q-form-title">Ajouter une question</p>
+      <div class="form-card" id="form-qcm">
+        <input type="text" class="form-input" id="q-text" placeholder="Énoncé de la question" />
+        <p class="hint">Coche la bonne réponse :</p>
+        <div class="answers-grid">
+          <div class="answer-item"><input type="radio" name="cr" value="0" id="r0"><label class="answer-label" for="r0">A</label><input type="text" class="form-input" id="a0" placeholder="Réponse A" /></div>
+          <div class="answer-item"><input type="radio" name="cr" value="1" id="r1"><label class="answer-label" for="r1">B</label><input type="text" class="form-input" id="a1" placeholder="Réponse B" /></div>
+          <div class="answer-item"><input type="radio" name="cr" value="2" id="r2"><label class="answer-label" for="r2">C</label><input type="text" class="form-input" id="a2" placeholder="Réponse C" /></div>
+          <div class="answer-item"><input type="radio" name="cr" value="3" id="r3"><label class="answer-label" for="r3">D</label><input type="text" class="form-input" id="a3" placeholder="Réponse D" /></div>
+        </div>
+        <button class="btn btn-dark" onclick="saveQuestion()">Ajouter la question</button>
+        <div class="success-msg" id="q-success"></div>
+      </div>
+
+      <div class="form-card" id="form-vf" style="display:none;">
+        <input type="text" class="form-input" id="vf-text" placeholder="Énoncé de l'affirmation" />
+        <p class="hint">La bonne réponse est :</p>
+        <div class="vf-row">
+          <button class="vf-btn" id="vf-true-btn" onclick="selectVF(true)">✓ Vrai</button>
+          <button class="vf-btn" id="vf-false-btn" onclick="selectVF(false)">✗ Faux</button>
+        </div>
+        <button class="btn btn-dark" onclick="saveQuestion()">Ajouter la question</button>
+        <div class="success-msg" id="vf-success"></div>
+      </div>
+
+      <p class="section-title" style="margin-top:1.5rem;">
+        Questions existantes <span id="q-count" style="font-size:13px;font-weight:400;color:#999;"></span>
+      </p>
+      <div class="question-list" id="question-list"><div class="empty-state">Chargement...</div></div>
+    </div>
+  </div>
+
+  <div id="view-sessions" class="view">
+    <div id="block-active" style="display:none;">
+      <p class="section-title">Session en cours</p>
+      <div class="active-session-card">
+        <div class="as-top">
+          <div>
+            <div class="as-label">Session active</div>
+            <div class="as-name" id="as-name">—</div>
+            <div class="as-code">Code : <span id="as-code">—</span></div>
+            <div class="as-players" id="as-players">0 participant(s)</div>
+          </div>
+          <div class="as-actions">
+            <button class="btn-start" id="btn-start-session" onclick="startSession()">▶ Démarrer la session</button>
+            <button class="btn btn-blue" onclick="window.open('cultivage-session.html','_blank')">🖥️ Écran de session</button>
+            <button class="btn btn-red" onclick="stopSession()">Terminer</button>
+          </div>
+        </div>
+        <div id="as-status-bar" style="font-size:13px;color:#64748b;padding-top:0.75rem;border-top:1px solid #1e293b;">En attente du démarrage…</div>
+      </div>
+    </div>
+
+    <div id="block-create" style="display:block;">
+      <p class="section-title">Lancer une session</p>
+      <div class="session-create-card">
+        <h3>Nouvelle session</h3>
+        <input type="text" class="form-input" id="session-name" placeholder="Nom de la session (ex: Soirée Quiz #1)" onkeydown="if(event.key==='Enter')createSession()" />
+        <button class="btn btn-green" onclick="createSession()">🚀 Lancer la session</button>
+        <div class="success-msg" id="session-success"></div>
+        <div class="error-msg" id="session-error"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.5rem;">
+      <p class="section-title">Historique</p>
+      <div id="sessions-history"><div class="empty-state">Aucune session passée.</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "Mdpadmincultivage2026";
+const THEMES = ["Sport","Histoire","Géographie","Science"];
+const MOD_NAMES = { qcm:"QCM", vf:"Vrai / Faux" };
+const firebaseConfig = {
+  apiKey:"AIzaSyC8XmP4SK8fypEJmHam52IIPqPVLa9U-AI",
+  authDomain:"cultivage-90317.firebaseapp.com",
+  projectId:"cultivage-90317",
+  storageBucket:"cultivage-90317.firebasestorage.app",
+  messagingSenderId:"481308116798",
+  appId:"1:481308116798:web:b54ad9044e2f2760068e6f"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let currentModule=null, currentTheme=null, vfAnswer=null;
+let activeSessionId=null, participantsUnsub=null;
+let openEditId = null;
+
+function tryLogin() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-screen').style.display = 'block';
+  loadCounts();
+}
+function logout() { location.reload(); }
+
+function switchTab(tab) {
+  ['modules','sessions'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('view-'+t).classList.toggle('active', t===tab);
+  });
+  if (tab === 'sessions') loadSessionsView();
+}
+
+function goStep(step) {
+  ['module','theme','questions'].forEach(s =>
+    document.getElementById('step-'+s).classList.toggle('active', s===step)
+  );
+  if (step==='module') { currentModule=null; currentTheme=null; loadCounts(); }
+  if (step==='theme') { currentTheme=null; renderThemes(); }
+}
+
+async function loadCounts() {
+  for (const mod of ['qcm','vf']) {
+    try {
+      const snap = await db.collection('questions').where('module','==',mod).get();
+      document.getElementById('count-'+mod).textContent = snap.size + ' question' + (snap.size!==1?'s':'');
+    } catch(e) { document.getElementById('count-'+mod).textContent = '—'; }
+  }
+}
+
+function selectModule(mod) {
+  currentModule = mod;
+  document.getElementById('bc-mod').textContent = MOD_NAMES[mod];
+  document.getElementById('bc-mod2').textContent = MOD_NAMES[mod];
+  renderThemes(); goStep('theme');
+}
+
+function renderThemes() {
+  document.getElementById('theme-row').innerHTML = THEMES.map(t =>
+    `<div class="theme-pill" onclick="selectTheme('${t}')">${t}</div>`
+  ).join('');
+}
+
+function selectTheme(theme) {
+  currentTheme = theme;
+  openEditId = null;
+  document.getElementById('bc-theme').textContent = theme;
+  document.getElementById('q-form-title').textContent = 'Ajouter une question — ' + theme;
+  document.getElementById('form-qcm').style.display = currentModule==='qcm' ? 'block' : 'none';
+  document.getElementById('form-vf').style.display = currentModule==='vf' ? 'block' : 'none';
+  vfAnswer = null;
+  document.getElementById('vf-true-btn').className = 'vf-btn';
+  document.getElementById('vf-false-btn').className = 'vf-btn';
+  goStep('questions'); loadQuestions();
+}
+
+function selectVF(val) {
+  vfAnswer = val;
+  document.getElementById('vf-true-btn').className = 'vf-btn'+(val===true?' sel-true':'');
+  document.getElementById('vf-false-btn').className = 'vf-btn'+(val===false?' sel-false':'');
+}
+
+async function saveQuestion() {
+  if (!currentModule || !currentTheme) return;
+  if (currentModule==='qcm') {
+    const text = document.getElementById('q-text').value.trim();
+    const answers = [0,1,2,3].map(i => document.getElementById('a'+i).value.trim());
+    const correctEl = document.querySelector('input[name="cr"]:checked');
+    if (!text) { alert('Entre l\'énoncé.'); return; }
+    if (answers.some(a=>!a)) { alert('Remplis les 4 réponses.'); return; }
+    if (!correctEl) { alert('Coche la bonne réponse.'); return; }
+    await db.collection('questions').add({ module:'qcm', theme:currentTheme, text, answers, correct:parseInt(correctEl.value), createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    document.getElementById('q-text').value='';
+    [0,1,2,3].forEach(i=>document.getElementById('a'+i).value='');
+    document.querySelectorAll('input[name="cr"]').forEach(r=>r.checked=false);
+    flash('q-success','✓ Question ajoutée !');
+  } else {
+    const text = document.getElementById('vf-text').value.trim();
+    if (!text) { alert('Entre l\'affirmation.'); return; }
+    if (vfAnswer===null) { alert('Choisis Vrai ou Faux.'); return; }
+    await db.collection('questions').add({ module:'vf', theme:currentTheme, text, correct:vfAnswer, createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    document.getElementById('vf-text').value='';
+    vfAnswer=null;
+    document.getElementById('vf-true-btn').className='vf-btn';
+    document.getElementById('vf-false-btn').className='vf-btn';
+    flash('vf-success','✓ Question ajoutée !');
+  }
+  loadQuestions();
+}
+
+async function loadQuestions() {
+  const list = document.getElementById('question-list');
+  list.innerHTML = '<div class="empty-state">Chargement...</div>';
+  try {
+    const snap = await db.collection('questions').where('module','==',currentModule).where('theme','==',currentTheme).get();
+    const qs = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>{ const ta=a.createdAt?.seconds||0; const tb=b.createdAt?.seconds||0; return ta-tb; });
+    window._cachedQuestions = qs;
+    document.getElementById('q-count').textContent = '('+qs.length+')';
+    if (qs.length===0) { list.innerHTML='<div class="empty-state">Aucune question.<br>Ajoute ta première question ci-dessus !</div>'; return; }
+    list.innerHTML = qs.map((q,i) => buildQuestionBanner(q,i)).join('');
+  } catch(e) { list.innerHTML='<div class="empty-state">Erreur : '+e.message+'</div>'; }
+}
+
+function buildQuestionBanner(q, i) {
+  const mod = q.module || currentModule;
+  const label = mod==='qcm'
+    ? `Bonne rép : ${'ABCD'[q.correct]}`
+    : `Bonne rép : ${q.correct?'Vrai':'Faux'}`;
+  return `<div id="banner-${q.id}">
+    <div class="q-banner" onclick="toggleEdit('${q.id}')">
+      <span class="q-banner-text">${i+1}. ${q.text}</span>
+      <span class="q-banner-meta">${label} 👁</span>
+    </div>
+    <div id="edit-${q.id}" style="display:none;">
+      ${buildViewForm(q, mod)}
+    </div>
+  </div>`;
+}
+
+function buildViewForm(q, mod) {
+  mod = mod || q.module || currentModule;
+  if (mod==='qcm') {
+    const opts = ['A','B','C','D'].map((l,j) => {
+      const isCorrect = q.correct===j;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;margin-bottom:6px;background:${isCorrect?'#052e16':'#f9f9f9'};border:1.5px solid ${isCorrect?'#16a34a':'#e0e0e0'};">
+        <span style="width:26px;height:26px;border-radius:6px;background:${['#1d4ed8','#b45309','#15803d','#9333ea'][j]};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">${l}</span>
+        <span style="font-size:14px;font-weight:${isCorrect?'700':'400'};color:${isCorrect?'#15803d':'#333'};">${q.answers[j]}</span>
+        ${isCorrect?'<span style="margin-left:auto;font-size:12px;color:#16a34a;font-weight:700;">✓ Bonne réponse</span>':''}
+      </div>`;
+    }).join('');
+    return `<div class="edit-panel" id="view-panel-${q.id}">
+      <p style="font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:0.75rem;">${q.text}</p>
+      ${opts}
+      <div class="edit-actions" style="margin-top:0.75rem;">
+        <button class="btn btn-dark btn-sm" onclick="switchToEdit('${q.id}')">✏️ Modifier</button>
+        <button class="btn btn-red btn-sm" onclick="deleteQuestion('${q.id}')">🗑 Supprimer</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleEdit('${q.id}')">Fermer</button>
+      </div>
+    </div>`;
+  } else {
+    const trueSel = q.correct===true;
+    return `<div class="edit-panel" id="view-panel-${q.id}">
+      <p style="font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:0.75rem;">${q.text}</p>
+      <div style="display:flex;gap:10px;margin-bottom:0.75rem;">
+        <div style="flex:1;padding:12px;border-radius:8px;text-align:center;font-weight:700;font-size:15px;background:${trueSel?'#052e16':'#f9f9f9'};border:2px solid ${trueSel?'#16a34a':'#e0e0e0'};color:${trueSel?'#15803d':'#555'};">✅ Vrai ${trueSel?'✓':''}</div>
+        <div style="flex:1;padding:12px;border-radius:8px;text-align:center;font-weight:700;font-size:15px;background:${!trueSel?'#052e16':'#f9f9f9'};border:2px solid ${!trueSel?'#16a34a':'#e0e0e0'};color:${!trueSel?'#15803d':'#555'};">❌ Faux ${!trueSel?'✓':''}</div>
+      </div>
+      <div class="edit-actions">
+        <button class="btn btn-dark btn-sm" onclick="switchToEdit('${q.id}')">✏️ Modifier</button>
+        <button class="btn btn-red btn-sm" onclick="deleteQuestion('${q.id}')">🗑 Supprimer</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleEdit('${q.id}')">Fermer</button>
+      </div>
+    </div>`;
+  }
+}
+
+function buildEditFormFull(q, mod) {
+  mod = mod || q.module || currentModule;
+  if (mod==='qcm') {
+    const opts = ['A','B','C','D'].map((l,j) => `
+      <div class="answer-item" style="margin-bottom:6px;">
+        <input type="radio" name="edit-cr-${q.id}" value="${j}" id="edit-r${j}-${q.id}" ${q.correct===j?'checked':''}>
+        <label class="answer-label" for="edit-r${j}-${q.id}">${l}</label>
+        <input type="text" class="form-input" id="edit-a${j}-${q.id}" value="${q.answers[j]}" style="margin-bottom:0;" />
+      </div>`).join('');
+    return `<div class="edit-panel" style="background:#eff6ff;border-color:#3b82f6;">
+      <p class="hint" style="margin-bottom:0.5rem;color:#1d4ed8;font-weight:600;">✏️ Modification en cours</p>
+      <input type="text" class="form-input" id="edit-text-${q.id}" value="${q.text.replace(/"/g,'&quot;')}" style="margin-bottom:0.75rem;" />
+      <p class="hint">Coche la bonne réponse :</p>
+      ${opts}
+      <div class="edit-actions" style="margin-top:0.75rem;">
+        <button class="btn btn-green btn-sm" onclick="updateQuestion('${q.id}')">💾 Enregistrer</button>
+        <button class="btn btn-red btn-sm" onclick="deleteQuestion('${q.id}')">🗑 Supprimer</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleEdit('${q.id}')">Annuler</button>
+      </div>
+    </div>`;
+  } else {
+    return `<div class="edit-panel" style="background:#eff6ff;border-color:#3b82f6;">
+      <p class="hint" style="margin-bottom:0.5rem;color:#1d4ed8;font-weight:600;">✏️ Modification en cours</p>
+      <input type="text" class="form-input" id="edit-text-${q.id}" value="${q.text.replace(/"/g,'&quot;')}" style="margin-bottom:0.75rem;" />
+      <p class="hint">Bonne réponse :</p>
+      <div class="vf-row" style="margin-bottom:0.75rem;">
+        <button class="vf-btn ${q.correct===true?'sel-true':''}" id="edit-vf-true-${q.id}" onclick="setEditVF('${q.id}',true)">✓ Vrai</button>
+        <button class="vf-btn ${q.correct===false?'sel-false':''}" id="edit-vf-false-${q.id}" onclick="setEditVF('${q.id}',false)">✗ Faux</button>
+      </div>
+      <div class="edit-actions">
+        <button class="btn btn-green btn-sm" onclick="updateQuestion('${q.id}')">💾 Enregistrer</button>
+        <button class="btn btn-red btn-sm" onclick="deleteQuestion('${q.id}')">🗑 Supprimer</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleEdit('${q.id}')">Annuler</button>
+      </div>
+    </div>`;
+  }
+}
+
+function switchToEdit(id) {
+  // Trouver la question dans le DOM
+  const snap = window._cachedQuestions || [];
+  const q = snap.find(q => q.id === id);
+  if (!q) return;
+  const mod = q.module || currentModule;
+  document.getElementById('edit-'+id).innerHTML = buildEditFormFull(q, mod);
+  if (mod==='vf') editVFState[id] = q.correct;
+}
+
+const editVFState = {};
+function setEditVF(id, val) {
+  editVFState[id] = val;
+  document.getElementById('edit-vf-true-'+id).className = 'vf-btn'+(val===true?' sel-true':'');
+  document.getElementById('edit-vf-false-'+id).className = 'vf-btn'+(val===false?' sel-false':'');
+}
+
+function toggleEdit(id) {
+  const el = document.getElementById('edit-'+id);
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  // Ferme tous les autres
+  document.querySelectorAll('[id^="edit-"]').forEach(e => { if(e.id.startsWith('edit-') && e.id !== 'edit-'+id) e.style.display='none'; });
+  el.style.display = isOpen ? 'none' : 'block';
+  openEditId = isOpen ? null : id;
+}
+
+async function updateQuestion(id) {
+  const text = document.getElementById('edit-text-'+id).value.trim();
+  if (!text) { alert('Entre l\'énoncé.'); return; }
+  try {
+    if (currentModule==='qcm') {
+      const answers = [0,1,2,3].map(j => document.getElementById('edit-a'+j+'-'+id).value.trim());
+      const correctEl = document.querySelector('input[name="edit-cr-'+id+'"]:checked');
+      if (answers.some(a=>!a)) { alert('Remplis les 4 réponses.'); return; }
+      if (!correctEl) { alert('Coche la bonne réponse.'); return; }
+      await db.collection('questions').doc(id).update({ text, answers, correct:parseInt(correctEl.value) });
+    } else {
+      const correct = editVFState.hasOwnProperty(id) ? editVFState[id] : null;
+      if (correct===null) { alert('Choisis Vrai ou Faux.'); return; }
+      await db.collection('questions').doc(id).update({ text, correct });
+    }
+    flash('q-success','✓ Question modifiée !');
+    loadQuestions();
+  } catch(e) { alert('Erreur : '+e.message); }
+}
+
+async function deleteQuestion(id) {
+  if (!confirm('Supprimer cette question ?')) return;
+  await db.collection('questions').doc(id).delete();
+  loadQuestions();
+}
+
+// ── SESSIONS ──
+async function loadSessionsView() {
+  try {
+    let snap = await db.collection('sessions').where('status','==','waiting').get();
+    if (snap.empty) snap = await db.collection('sessions').where('status','==','started').get();
+    if (!snap.empty) {
+      const sorted = snap.docs.sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
+      showActiveSession(sorted[0]);
+    } else { showCreateForm(); }
+  } catch(e) { showCreateForm(); }
+  loadHistory();
+}
+
+function showActiveSession(doc) {
+  activeSessionId = doc.id;
+  const data = doc.data();
+  document.getElementById('block-active').style.display='block';
+  document.getElementById('block-create').style.display='none';
+  document.getElementById('as-name').textContent = data.name;
+  document.getElementById('as-code').textContent = data.code;
+  const started = data.status==='started';
+  document.getElementById('btn-start-session').style.display = started?'none':'inline-block';
+  document.getElementById('as-status-bar').textContent = started ? '▶ Session démarrée' : 'En attente du démarrage…';
+  if (participantsUnsub) participantsUnsub();
+  participantsUnsub = db.collection('sessions').doc(activeSessionId).collection('participants').onSnapshot(snap => {
+    document.getElementById('as-players').textContent = snap.size+' participant(s) connecté(s)';
+  });
+}
+
+function showCreateForm() {
+  activeSessionId = null;
+  document.getElementById('block-active').style.display='none';
+  document.getElementById('block-create').style.display='block';
+}
+
+async function createSession() {
+  const name = document.getElementById('session-name').value.trim();
+  if (!name) { document.getElementById('session-error').textContent='Donne un nom à la session.'; return; }
+  document.getElementById('session-error').textContent='';
+  try {
+    const code = Math.random().toString(36).substring(2,8).toUpperCase();
+    await db.collection('sessions').add({ name, code, status:'waiting', createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    document.getElementById('session-name').value='';
+    flash('session-success','✓ Session créée ! Code : '+code);
+    setTimeout(()=>loadSessionsView(), 1000);
+  } catch(e) { document.getElementById('session-error').textContent='Erreur : '+e.message; }
+}
+
+async function startSession() {
+  if (!activeSessionId) return;
+  if (!confirm('Démarrer la session ? Les joueurs verront "BE READY" sur leur téléphone.')) return;
+  await db.collection('sessions').doc(activeSessionId).update({ status:'started' });
+  document.getElementById('btn-start-session').style.display='none';
+  document.getElementById('as-status-bar').textContent='▶ Session démarrée';
+  flash('session-success','✓ Session démarrée !');
+}
+
+async function stopSession() {
+  if (!activeSessionId) return;
+  if (!confirm('Terminer la session ?')) return;
+  await db.collection('sessions').doc(activeSessionId).update({ status:'done' });
+  if (participantsUnsub) participantsUnsub();
+  showCreateForm(); loadHistory();
+}
+
+async function loadHistory() {
+  try {
+    const snap = await db.collection('sessions').where('status','==','done').get();
+    const el = document.getElementById('sessions-history');
+    if (snap.empty) { el.innerHTML='<div class="empty-state">Aucune session passée.</div>'; return; }
+    const sorted = snap.docs.sort((a,b)=>(b.data().createdAt?.seconds||0)-(a.data().createdAt?.seconds||0));
+    el.innerHTML = sorted.map(d=>{
+      const s=d.data();
+      const date=s.createdAt?new Date(s.createdAt.seconds*1000).toLocaleDateString('fr-FR'):'—';
+      return `<div class="history-item"><div><div style="font-size:14px;font-weight:600;">${s.name}</div><div style="font-size:12px;color:#999;">Code : ${s.code} · ${date}</div></div><span class="badge-done">Terminée</span></div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function flash(id, msg) {
+  const el=document.getElementById(id); if(!el) return;
+  el.textContent=msg; setTimeout(()=>el.textContent='',3000);
+}
+</script>
+</body>
+</html>

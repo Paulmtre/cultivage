@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cultivage — Joueur</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; }
+
+/* JOIN */
+.card { background: #16213e; border: 1px solid #0f3460; border-radius: 20px; padding: 2rem 1.5rem; width: 100%; max-width: 360px; text-align: center; }
+.card h2 { font-size: 24px; font-weight: 800; margin-bottom: .5rem; }
+.card .sub { font-size: 14px; color: #8892b0; margin-bottom: 1.5rem; }
+.badge { display: inline-block; background: #0f3460; border-radius: 99px; padding: 5px 16px; font-size: 13px; color: #64ffda; font-weight: 700; letter-spacing: 1px; margin-bottom: 1.25rem; }
+.divider { font-size: 12px; color: #64ffda; margin: 0 0 1rem; }
+input[type="text"] { width: 100%; padding: 14px; background: #0f3460; border: 2px solid #334155; border-radius: 12px; font-size: 20px; color: #fff; text-align: center; font-family: inherit; outline: none; margin-bottom: 1rem; letter-spacing: 2px; }
+input[type="text"]:focus { border-color: #64ffda; }
+input::placeholder { color: #475569; font-size: 15px; letter-spacing: 0; }
+.btn-join { width: 100%; padding: 15px; background: #e94560; color: #fff; border: none; border-radius: 12px; font-size: 17px; font-weight: 800; cursor: pointer; font-family: inherit; letter-spacing: 1px; }
+.btn-join:hover { background: #c73652; }
+.btn-join:disabled { background: #334155; cursor: not-allowed; }
+.btn-sec { width: 100%; padding: 11px; background: none; color: #8892b0; border: 1px solid #334155; border-radius: 12px; font-size: 14px; cursor: pointer; font-family: inherit; margin-top: 8px; }
+.error-msg { font-size: 13px; color: #e94560; margin-top: .75rem; min-height: 18px; }
+
+/* SCREENS */
+.screen { display: none; width: 100%; max-width: 440px; text-align: center; }
+.screen.active { display: block; }
+
+/* WAITING */
+.wait-icon { font-size: 56px; margin-bottom: 1rem; animation: bounce 1.5s infinite; }
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+.wait-name { font-size: 24px; font-weight: 800; color: #64ffda; margin-bottom: .5rem; }
+.dots span { display: inline-block; animation: blink 1.4s infinite; color: #64ffda; font-size: 24px; }
+.dots span:nth-child(2){animation-delay:.2s;}.dots span:nth-child(3){animation-delay:.4s;}
+@keyframes blink{0%,100%{opacity:.2;}50%{opacity:1;}}
+
+/* BE READY */
+.beready-emoji { font-size: 80px; margin-bottom: 1rem; animation: pop .5s ease; }
+@keyframes pop{0%{transform:scale(0);}80%{transform:scale(1.2);}100%{transform:scale(1);}}
+.beready-text { font-size: 40px; font-weight: 900; color: #64ffda; letter-spacing: 3px; margin-bottom: .5rem; }
+
+/* QUESTION SCREEN */
+#s-question { display: none; width: 100%; max-width: 440px; }
+#s-question.active { display: flex; flex-direction: column; height: 100vh; padding: 1rem; }
+.q-top { flex-shrink: 0; margin-bottom: 1rem; }
+.q-num { font-size: 13px; color: #8892b0; font-weight: 600; margin-bottom: .5rem; }
+.q-timer-bar-wrap { height: 8px; background: #0f3460; border-radius: 99px; overflow: hidden; margin-bottom: .5rem; }
+.q-timer-bar { height: 100%; background: #64ffda; border-radius: 99px; transition: width 1s linear, background .3s; }
+.q-timer-num { font-size: 28px; font-weight: 900; color: #64ffda; }
+.q-timer-num.urgent { color: #e94560; animation: pulse 0.5s infinite; }
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+.q-text-box { background: #16213e; border-radius: 14px; padding: 1rem; margin-bottom: 1rem; flex-shrink: 0; }
+.q-text-player { font-size: 17px; font-weight: 700; line-height: 1.4; color: #fff; }
+
+/* GRILLE KAHOOT */
+.kahoot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; }
+.k-btn {
+  border-radius: 14px; border: none; cursor: pointer;
+  font-family: inherit; font-weight: 900; font-size: 48px;
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  min-height: 110px; transition: transform .1s, filter .1s;
+  position: relative; overflow: hidden;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.35);
+}
+.k-btn:active { transform: scale(0.95) translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
+.k-btn.A { background: #e94560; }
+.k-btn.B { background: #1e90ff; }
+.k-btn.C { background: #f5a623; }
+.k-btn.D { background: #2ecc71; }
+.k-btn .k-shape { font-size: 28px; }
+.k-btn.answered { transform: scale(0.9); filter: brightness(0.6); cursor: default; }
+.k-btn.correct { transform: scale(1.05); filter: brightness(1.2); box-shadow: 0 0 30px rgba(255,255,255,0.4); cursor: default; }
+.k-btn.wrong { transform: scale(0.85); filter: brightness(0.3); cursor: default; }
+
+/* VF */
+.vf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vf-big { border-radius: 14px; border: none; cursor: pointer; font-family: inherit; font-weight: 800; font-size: 20px; color: #fff; min-height: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 0 rgba(0,0,0,0.3); transition: transform .1s; }
+.vf-big:active { transform: scale(0.95); }
+.vf-big.VRAI { background: #2ecc71; }
+.vf-big.FAUX { background: #e94560; }
+.vf-big.answered { transform: scale(0.9); filter: brightness(0.5); cursor: default; }
+.vf-big.correct { transform: scale(1.05); filter: brightness(1.2); box-shadow: 0 0 30px rgba(255,255,255,0.4); }
+.vf-big.wrong { transform: scale(0.85); filter: brightness(0.3); }
+
+/* RESULT */
+.res-wrap { background: #16213e; border-radius: 20px; padding: 2rem 1.5rem; width: 100%; max-width: 360px; text-align: center; }
+.res-emoji { font-size: 72px; margin-bottom: 1rem; animation: pop .4s ease; }
+.res-title { font-size: 26px; font-weight: 800; margin-bottom: .5rem; }
+.res-pts { font-size: 22px; color: #64ffda; font-weight: 800; margin-bottom: .75rem; }
+.res-wait { font-size: 13px; color: #8892b0; }
+
+/* RECAP */
+.recap-wrap { width: 100%; max-width: 400px; }
+.recap-title { font-size: 24px; font-weight: 800; margin-bottom: 1.25rem; }
+.recap-item { display: flex; align-items: center; background: #16213e; border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; font-size: 15px; }
+.r-rank { font-size: 20px; min-width: 32px; }
+.r-name { font-weight: 700; flex: 1; text-align: left; margin-left: 8px; }
+.r-name.me { color: #64ffda; }
+.r-pts { color: #64ffda; font-weight: 800; font-size: 16px; }
+.btn-ok { background: #e94560; color: #fff; border: none; border-radius: 12px; padding: 14px 28px; font-size: 16px; font-weight: 800; cursor: pointer; font-family: inherit; margin-top: 1.25rem; }
+</style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div id="join-screen" class="card">
+  <h2>🌱 Cultivage</h2>
+  <p class="sub">Entre le code affiché sur l'écran</p>
+  <div id="step-code">
+    <input type="text" id="code-input" placeholder="CODE" maxlength="6" autocomplete="off"
+      onkeydown="if(event.key==='Enter')validateCode()" />
+    <button class="btn-join" onclick="validateCode()">VALIDER →</button>
+    <div class="error-msg" id="code-error"></div>
+  </div>
+  <div id="step-name" style="display:none;">
+    <div class="badge" id="session-badge">CODE : —</div>
+    <div class="divider">✓ Session trouvée — Entre ton prénom</div>
+    <input type="text" id="name-input" placeholder="Ton prénom" maxlength="20" autocomplete="off"
+      onkeydown="if(event.key==='Enter')joinSession()" />
+    <button class="btn-join" id="btn-join" onclick="joinSession()">REJOINDRE →</button>
+    <button class="btn-sec" onclick="resetCode()">← Retour</button>
+    <div class="error-msg" id="join-error"></div>
+  </div>
+</div>
+
+<!-- WAITING -->
+<div class="screen" id="s-waiting">
+  <div class="wait-icon">🎮</div>
+  <div class="wait-name" id="w-name"></div>
+  <div style="font-size:14px;color:#8892b0;margin-bottom:.5rem;">Inscrit(e) avec succès !</div>
+  <div style="font-size:14px;color:#8892b0;">En attente du lancement…</div>
+  <div class="dots" style="margin-top:1rem;"><span>.</span><span>.</span><span>.</span></div>
+</div>
+
+<!-- BE READY -->
+<div class="screen" id="s-beready">
+  <div class="beready-emoji">🎯</div>
+  <div class="beready-text">BE READY!</div>
+  <div style="font-size:15px;color:#8892b0;margin-top:.75rem;">Prépare-toi, ça commence !</div>
+</div>
+
+<!-- QUESTION (plein écran) -->
+<div class="screen" id="s-question">
+  <div class="q-top">
+    <div class="q-num" id="pq-num">Question 1/5</div>
+    <div class="q-timer-bar-wrap"><div class="q-timer-bar" id="pq-bar" style="width:100%"></div></div>
+    <div class="q-timer-num" id="pq-timer">15</div>
+  </div>
+  <!-- question text hidden: players only see answer buttons -->
+  <div id="pq-answers"></div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="s-result">
+  <div class="res-wrap">
+    <div class="res-emoji" id="res-emoji">🎉</div>
+    <div class="res-title" id="res-title">Bonne réponse !</div>
+    <div class="res-pts" id="res-pts">+3 points</div>
+    <div class="res-wait">En attente de la prochaine question…</div>
+  </div>
+</div>
+
+<!-- RECAP -->
+<div class="screen" id="s-recap">
+  <div class="recap-wrap">
+    <div class="recap-title">🏆 Scores</div>
+    <div id="recap-list-p"></div>
+    <button class="btn-ok" onclick="backToWait()">OK !</button>
+  </div>
+</div>
+
+<!-- DONE -->
+<div class="screen" id="s-done">
+  <div style="font-size:64px;margin-bottom:1rem;">🏁</div>
+  <div style="font-size:26px;font-weight:800;color:#64ffda;margin-bottom:.5rem;">Session terminée !</div>
+  <div style="font-size:14px;color:#8892b0;">Merci d'avoir participé 🎉</div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey:"AIzaSyC8XmP4SK8fypEJmHam52IIPqPVLa9U-AI",
+  authDomain:"cultivage-90317.firebaseapp.com",
+  projectId:"cultivage-90317",
+  storageBucket:"cultivage-90317.firebasestorage.app",
+  messagingSenderId:"481308116798",
+  appId:"1:481308116798:web:b54ad9044e2f2760068e6f"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let sessionId=null, participantId=null, playerName=null;
+let timerInterval=null;
+let lastRoundId=null, lastQIdx=-1, lastSeq=-1;
+let hasAnswered=false, recapShown=false;
+let currentScreen='join';
+
+// ── CLEF : on ignore revealed si on vient juste d'afficher la question ──
+let questionShownAt=0; // timestamp quand la question a été affichée
+
+// ── Persistance ──
+function save(){ localStorage.setItem('cvg',JSON.stringify({sessionId,participantId,playerName})); }
+function load(){ try{return JSON.parse(localStorage.getItem('cvg')||'null');}catch(e){return null;} }
+function clear(){ localStorage.removeItem('cvg'); }
+
+async function init(){
+  const s=load();
+  if(s&&s.sessionId&&s.participantId&&s.playerName){
+    try{
+      const doc=await db.collection('sessions').doc(s.sessionId).get();
+      if(doc.exists&&['waiting','started'].includes(doc.data().status)){
+        sessionId=s.sessionId; participantId=s.participantId; playerName=s.playerName;
+        document.getElementById('join-screen').style.display='none';
+        document.getElementById('w-name').textContent=playerName;
+        showS('s-waiting');
+        watch();
+        return;
+      }
+    }catch(e){}
+    clear();
+  }
+  const code=new URLSearchParams(window.location.search).get('code');
+  if(code) tryCode(code.toUpperCase());
+}
+init();
+
+async function validateCode(){
+  const v=document.getElementById('code-input').value.trim().toUpperCase();
+  if(!v){document.getElementById('code-error').textContent='Entre un code.';return;}
+  await tryCode(v);
+}
+async function tryCode(code){
+  document.getElementById('code-error').textContent='Vérification…';
+  try{
+    const snap=await db.collection('sessions').where('code','==',code).where('status','in',['waiting','started']).get();
+    if(snap.empty){document.getElementById('code-error').textContent='Code introuvable.';return;}
+    sessionId=snap.docs[0].id;
+    document.getElementById('code-error').textContent='';
+    document.getElementById('session-badge').textContent='CODE : '+code;
+    document.getElementById('step-code').style.display='none';
+    document.getElementById('step-name').style.display='block';
+    setTimeout(()=>document.getElementById('name-input').focus(),100);
+  }catch(e){document.getElementById('code-error').textContent='Erreur: '+e.message;}
+}
+function resetCode(){
+  sessionId=null;
+  document.getElementById('step-code').style.display='block';
+  document.getElementById('step-name').style.display='none';
+  document.getElementById('code-input').value='';
+  document.getElementById('code-error').textContent='';
+}
+async function joinSession(){
+  const name=document.getElementById('name-input').value.trim();
+  if(!name){document.getElementById('join-error').textContent='Entre ton prénom.';return;}
+  document.getElementById('btn-join').disabled=true;
+  try{
+    const ex=await db.collection('sessions').doc(sessionId).collection('participants').where('name','==',name).get();
+    if(!ex.empty){document.getElementById('join-error').textContent='Prénom déjà utilisé.';document.getElementById('btn-join').disabled=false;return;}
+    const ref=await db.collection('sessions').doc(sessionId).collection('participants').add({name,joinedAt:firebase.firestore.FieldValue.serverTimestamp(),score:0});
+    participantId=ref.id; playerName=name;
+    save();
+    document.getElementById('join-screen').style.display='none';
+    document.getElementById('w-name').textContent=name;
+    showS('s-waiting');
+    watch();
+  }catch(e){document.getElementById('join-error').textContent='Erreur: '+e.message;document.getElementById('btn-join').disabled=false;}
+}
+
+// ── LISTENER UNIQUE ──
+function watch(){
+  db.collection('sessions').doc(sessionId).onSnapshot(doc=>{
+    if(!doc.exists) return;
+    const d=doc.data();
+
+    if(d.status==='done'){clear();showS('s-done');return;}
+    if(d.status==='waiting'){if(currentScreen!=='s-waiting')showS('s-waiting');return;}
+
+    if(d.status==='started'){
+      const r=d.currentRound;
+      if(!r){if(currentScreen!=='s-beready')showS('s-beready');return;}
+
+      const seq = r.seq||0;
+
+      // ── Round terminé ──
+      if(r.status==='done'){
+        if(!recapShown){recapShown=true;showRecap();}
+        return;
+      }
+
+      // ── Nouvelle question (status=playing ET seq a changé) ──
+      if(r.status==='playing' && seq!==lastSeq){
+        lastSeq=seq;
+        lastRoundId=r.roundId||'';
+        lastQIdx=r.currentIndex||0;
+        hasAnswered=false;
+        recapShown=false;
+        showQuestion(r, lastQIdx);
+        return;
+      }
+
+      // ── Révélation (status=revealed) : si joueur n'a pas répondu → timeout ──
+      if(r.status==='revealed' && seq===lastSeq && !hasAnswered){
+        hasAnswered=true;
+        clearInterval(timerInterval);
+        showResult('timeout');
+        return;
+      }
+    }
+  });
+}
+
+// ── Affichage question ──
+function showQuestion(r,idx){
+  const q=r.questions[idx];
+  if(!q){console.error('Question manquante',idx);return;}
+
+  showS('s-question');
+  document.getElementById('pq-num').textContent='Question '+(idx+1)+'/'+r.totalQuestions;
+
+  // Timer
+  clearInterval(timerInterval);
+  let left=r.timerSec||15;
+  updateBar(left,r.timerSec||15);
+  timerInterval=setInterval(()=>{
+    left--;
+    updateBar(left,r.timerSec||15);
+    if(left<=0) clearInterval(timerInterval);
+  },1000);
+
+  // Boutons
+  const el=document.getElementById('pq-answers');
+  const correct=q.correct;
+
+  const mod = r.module || (r.questions[idx] && r.questions[idx].module) || 'qcm';
+  if(mod==='qcm'){
+    el.innerHTML=`<div class="kahoot-grid">
+      <button class="k-btn A" id="kb0" onclick="pick(0,${correct},this)">A</button>
+      <button class="k-btn B" id="kb1" onclick="pick(1,${correct},this)">B</button>
+      <button class="k-btn C" id="kb2" onclick="pick(2,${correct},this)">C</button>
+      <button class="k-btn D" id="kb3" onclick="pick(3,${correct},this)">D</button>
+    </div>`;
+  } else {
+    el.innerHTML=`<div class="vf-grid">
+      <button class="vf-big VRAI" onclick="pickVF(true,${correct},this)">✅<br>VRAI</button>
+      <button class="vf-big FAUX" onclick="pickVF(false,${correct},this)">❌<br>FAUX</button>
+    </div>`;
+  }
+}
+
+function updateBar(left,total){
+  const bar=document.getElementById('pq-bar');
+  const num=document.getElementById('pq-timer');
+  if(!bar||!num) return;
+  bar.style.width=(left/total*100)+'%';
+  bar.style.background=left<=5?'#e94560':'#64ffda';
+  num.textContent=left;
+  num.className='q-timer-num'+(left<=5?' urgent':'');
+}
+
+// ── Répondre ──
+function pick(chosen,correct,btn){
+  if(hasAnswered) return;
+  hasAnswered=true;
+  clearInterval(timerInterval);
+  // Désactiver tous les boutons proprement
+  for(let i=0;i<4;i++){
+    const b=document.getElementById('kb'+i);
+    if(b){b.onclick=null;b.classList.add('answered');}
+  }
+  btn.classList.remove('answered');
+  btn.classList.add('selected');
+  const ok=(chosen===correct);
+  record(chosen,ok);
+  showResult(ok?'correct':'wrong');
+}
+
+function pickVF(chosen,correct,btn){
+  if(hasAnswered) return;
+  hasAnswered=true;
+  clearInterval(timerInterval);
+  document.querySelectorAll('.vf-big').forEach(b=>{b.onclick=null;b.classList.add('answered');});
+  btn.classList.remove('answered');
+  btn.classList.add('selected');
+  const ok=(chosen===correct);
+  record(chosen?0:1,ok);
+  showResult(ok?'correct':'wrong');
+}
+
+async function record(chosen,isCorrect){
+  if(!participantId||!lastRoundId) return;
+  try{
+    await db.collection('sessions').doc(sessionId).collection('rounds').doc(lastRoundId).collection('answers').add({
+      participantId,playerName,questionIndex:lastQIdx,chosen,isCorrect,
+      answeredAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    if(isCorrect){
+      await db.collection('sessions').doc(sessionId).collection('participants').doc(participantId).update({
+        score:firebase.firestore.FieldValue.increment(3)
+      });
+    }
+  }catch(e){console.error('record error',e);}
+}
+
+function showResult(type){
+  const emoji={correct:'🎉',wrong:'😞',timeout:'⏰'};
+  const title={correct:'Bonne réponse !',wrong:'Mauvaise réponse…',timeout:'Temps écoulé !'};
+  const pts={correct:'+3 points',wrong:'',timeout:''};
+  document.getElementById('res-emoji').textContent=emoji[type];
+  document.getElementById('res-title').textContent=title[type];
+  document.getElementById('res-pts').textContent=pts[type];
+  showS('s-result');
+}
+
+async function showRecap(){
+  const pSnap=await db.collection('sessions').doc(sessionId).collection('participants').get();
+  const players=pSnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.score||0)-(a.score||0));
+  document.getElementById('recap-list-p').innerHTML=players.map((p,i)=>`
+    <div class="recap-item">
+      <span class="r-rank">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span>
+      <span class="r-name${p.id===participantId?' me':''}">${p.name}${p.id===participantId?' 👈':''}</span>
+      <span class="r-pts">${p.score||0} pts</span>
+    </div>`).join('');
+  showS('s-recap');
+}
+
+function backToWait(){recapShown=false;showS('s-beready');}
+
+function showS(id){
+  currentScreen=id;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el) el.classList.add('active');
+}
+</script>
+</body>
+</html>
